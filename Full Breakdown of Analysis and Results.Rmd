@@ -1,0 +1,487 @@
+---
+title: "DataScience Assignment"
+author: '22168243'
+date: "2025-08-22"
+output:
+  word_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+env <- read.csv("EnvData.csv")
+attach(env)
+```
+
+```{r}
+head(env)
+```
+
+```{r}
+str(env)
+```
+
+```{r}
+summary(env)
+```
+
+```{r}
+env$asthma <- as.factor(env$asthma)
+env$gender <- as.factor(env$gender)
+env$postcode <- as.factor(env$postcode)
+env$suburb <- as.factor(env$suburb)
+env$age <- as.factor(env$age)
+env$triage <- as.factor(env$triage)
+```
+
+```{r}
+set.seed(3)
+train_ind=sample(1:nrow(env),ceiling(0.75*nrow(env)),replace=FALSE)
+train <- env[train_ind,]
+train$asthma <- as.factor(train$asthma)
+train$gender <- as.factor(train$gender)
+train$postcode <- as.factor(train$postcode)
+train$suburb <- as.factor(train$suburb)
+train$age <- as.factor(train$age)
+train$triage <- as.factor(train$triage)
+str(train)
+```
+
+```{r}
+length(unique(env$postcode))
+length(unique(env$suburb))
+length(unique(env$triage))
+table(env$triage)
+```
+
+```{r}
+
+```
+
+```{r}
+cor(env[,c(3,8:20)])
+```
+
+```{r}
+cov(env[,c(3,8:20)])
+
+```
+
+```{r}
+# Generate multiple box plots
+par(mfrow=c(2,5))
+for(i in c(3,8:20)){
+  boxplot(env[,i]~env$asthma,col=i,ylab=colnames(env)[i])
+}
+```
+
+```{r}
+# Generate histograms for quantitative variables
+for(j in c(3,8:20)){
+  hist(env[,j],main=paste("Histogram of",colnames(env)[j]),col=j)
+}
+```
+
+```{r}
+# Generate scatterplot matrix
+par(mfrow=c(2,2))
+plot(env[,c(3,8:20)])
+```
+
+```{r}
+barplot(table(env$age,env$asthma),main="Age Vs Asthma",beside=TRUE,col=1:17,legend.text = unique(env$age))
+```
+
+```{r}
+barplot(table(env$gender,env$asthma),col=c("cyan","darkred"),legend.text=unique(env$gender),beside=TRUE,main="Gender vs Asthma")
+```
+
+```{r}
+barplot(table(env$triage,env$asthma),beside=TRUE,legend.text=unique(env$triage),main="Triage vs Asthma",col=c(3,4,5,6),args.legend = list(x="center"))
+```
+
+```{r}
+model_asthma <- glm(asthma~length_of_stay_minutes+age+gender+co+o3+no2+so2+ppm10+visibility_reduction+aqi+precipitation+relativehumidity+vapourpressure+windspeed+winddirection+maxwindspeed+triage,data=train,family="binomial")
+summary(model_asthma)
+```
+
+```{r}
+# Using p-values to identify significant predictors, eliminate variables with p-values above 5%
+modified <- glm(asthma ~ age+so2+vapourpressure+winddirection+so2*vapourpressure+so2*winddirection+vapourpressure*winddirection,data=train,family="binomial")
+summary(modified)
+```
+
+```{r}
+modified2 <- glm(asthma ~ age +so2+vapourpressure+age*winddirection,data=train,family="binomial")
+summary(modified2)
+```
+
+```{r}
+# Define the test dataset
+test <- env[-train_ind,]
+colnames(test)
+```
+
+```{r}
+# Using first fitted model for prediction
+original_predict <- predict(model_asthma,newdata = env[-train_ind,],type="response")
+```
+
+```{r}
+# Determine which binary class is being predicted
+contrasts(train$asthma)
+```
+
+```{r}
+# Using threshold of above 0.5 for Yes and below or equal to 0.5 for No,create vector of predictions
+orig_pred <- rep("No",nrow(env[-train_ind,]))
+orig_pred[original_predict>0.5] <- "Yes"
+```
+
+```{r}
+# Tabulate predicted values versus actual values
+table(orig_pred,env[-train_ind,"asthma"])
+```
+
+```{r}
+# Find out accuracy of the model
+acc1 <- round(mean(orig_pred==env[-train_ind,"asthma"])*100,2)
+cat("The accuracy of the model fitted using all the variables is",acc1)
+```
+
+```{r}
+misc1 <- round(mean(orig_pred!=env[-train_ind,"asthma"])*100,2)
+cat("The misclassification rate of the model fitted using all the variables is",misc1)
+```
+
+```{r}
+glm.predict=predict(modified,newdata=test,type="response")
+```
+
+```{r}
+glm_pred <- rep("No",nrow(env[-train_ind,]))
+glm_pred[glm.predict>0.5] <- "Yes"
+```
+
+```{r}
+table(glm_pred,env[-train_ind,"asthma"])
+```
+
+```{r}
+acc2 <- round(mean(glm_pred==env[-train_ind,"asthma"])*100,2)
+cat("The accuracy of the second fitted model is",acc2)
+```
+
+```{r}
+
+misc2 <- round(mean(glm_pred!=env[-train_ind,"asthma"])*100,2)
+cat("The misclassification rate of the second fitted model is",misc2)
+```
+
+```{r}
+glm.predict2=predict(modified2,newdata=test,type="response")
+```
+
+```{r}
+glm_pred2 <- rep("No",nrow(env[-train_ind,]))
+glm_pred2[glm.predict2>0.5] <- "Yes"
+```
+
+```{r}
+table(glm_pred2,env[-train_ind,"asthma"])
+```
+
+```{r}
+acc3 <- round(mean(glm_pred2==env[-train_ind,"asthma"])*100,2)
+cat("The accuracy of the third fitted model is",acc3)
+```
+
+```{r}
+
+misc3 <- round(mean(glm_pred2!=env[-train_ind,"asthma"])*100,2)
+cat("The misclassification rate of the third fitted model is",misc3)
+```
+
+```{r,warning=FALSE}
+# Using step method to evaluate best model with direction==both
+step(model_asthma,direction="both",trace=FALSE)
+```
+
+```{r}
+modified3 <- glm(formula = asthma ~ age + co + so2 + ppm10 + aqi + precipitation + vapourpressure + winddirection, family = "binomial", data = train)
+summary(modified3)
+```
+
+```{r}
+glm.predict3=predict(modified3,newdata=test,type="response")
+```
+
+```{r}
+glm_pred3 <- rep("No",nrow(env[-train_ind,]))
+glm_pred3[glm.predict3>0.5] <- "Yes"
+```
+
+```{r}
+tablog <- table(glm_pred3,env[-train_ind,"asthma"])
+tablog
+```
+
+```{r}
+acc4 <- round(mean(glm_pred3==env[-train_ind,"asthma"])*100,2)
+cat("The accuracy of the fourth fitted model is",acc4)
+```
+
+```{r}
+misc4 <- round(mean(glm_pred3!=env[-train_ind,"asthma"])*100,2)
+cat("The misclassification rate of the fourth fitted model is",misc4)
+```
+```{r}
+fnr_log <- tablog[1,2]/(tablog[1,2]+tablog[2,2])
+cat("The false negative rate for the logistic regression model is",fnr_log)
+```
+```{r}
+fpr_log <- tablog[2,1]/(tablog[1,1]+tablog[2,1])
+cat("The false positive rate for the logistic regression model is",fpr_log)
+```
+
+
+The final resultant model is:
+
+$$
+P(Asthma=1 \mid X) =
+\frac{e^{-(`r coef(modified3)[1]` + `r coef(modified3)[2]` age05\_to\_09 + `r coef(modified3)[3]` age10\_to\_14 + `r coef(modified3)[4]` age15\_to\_19 + `r coef(modified3)[5]` age20\_to\_24 + `r coef(modified3)[6]` age25\_to\_29 + `r coef(modified3)[7]` age30\_to\_34 + `r coef(modified3)[8]` age35\_to\_39 + `r coef(modified3)[9]` age40\_to\_44 + `r coef(modified3)[10]` age45\_to\_49 + `r coef(modified3)[11]` age50\_to\_54 + `r coef(modified3)[12]` age55\_to\_59 + `r coef(modified3)[13]` age60\_to\_64 + `r coef(modified3)[14]` age65\_to\_69 + `r coef(modified3)[15]` age70\_to\_74 + `r coef(modified3)[16]` age80\_to\_84 + `r coef(modified3)[17]` age90\_to\_94 + `r coef(modified3)[18]` co + `r coef(modified3)[19]` so2 + `r coef(modified3)[20]` ppm10 + `r coef(modified3)[21]` aqi + `r coef(modified3)[22]` precipitation + `r coef(modified3)[23]` vapourpressure + `r coef(modified3)[24]` winddirection)}}{1 + e^{-(`r coef(modified3)[1]` + `r coef(modified3)[2]` age05\_to\_09 + `r coef(modified3)[3]` age10\_to\_14 + `r coef(modified3)[4]` age15\_to\_19 + `r coef(modified3)[5]` age20\_to\_24 + `r coef(modified3)[6]` age25\_to\_29 + `r coef(modified3)[7]` age30\_to\_34 + `r coef(modified3)[8]` age35\_to\_39 + `r coef(modified3)[9]` age40\_to\_44 + `r coef(modified3)[10]` age45\_to\_49 + `r coef(modified3)[11]` age50\_to\_54 + `r coef(modified3)[12]` age55\_to\_59 + `r coef(modified3)[13]` age60\_to\_64 + `r coef(modified3)[14]` age65\_to\_69 + `r coef(modified3)[15]` age70\_to\_74 + `r coef(modified3)[16]` age80\_to\_84 + `r coef(modified3)[17]` age90\_to\_94 + `r coef(modified3)[18]` co + `r coef(modified3)[19]` so2 + `r coef(modified3)[20]` ppm10 + `r coef(modified3)[21]` aqi + `r coef(modified3)[22]` precipitation + `r coef(modified3)[23]` vapourpressure + `r coef(modified3)[24]` winddirection)}}
+$$ $$
+P(\text{Asthma}=1 \mid X) = \frac{e^{\beta_0 + \beta_1 \text{age} + \beta_2 \text{co} + \beta_3 \text{so2} + \beta_4 \text{ppm10} + \beta_5 \text{aqi} + \beta_6 \text{precipitation} + \beta_7 \text{vapourpressure} + \beta_8 \text{winddirection}}}{1 + e^{\beta_0 + \beta_1 \text{age} + \beta_2 \text{co} + \beta_3 \text{so2} + \beta_4 \text{ppm10} + \beta_5 \text{aqi} + \beta_6 \text{precipitation} + \beta_7 \text{vapourpressure} + \beta_8 \text{winddirection}}}
+$$ \
+
+## Part B of Assignment
+
+```{r}
+library(boot)
+```
+
+```{r}
+set.seed(3)
+cross_val_error=rep(0,10)
+for(i in 1:10){
+  poly_model <- glm(formula =asthma ~co + so2 +ppm10 + aqi + precipitation + poly(vapourpressure,i) +poly(winddirection,i)+winddirection*vapourpressure, family = "binomial", data = train)
+  cross_val_error[i] <- cv.glm(train,poly_model,K=10)$delta[1]
+}
+plot(cross_val_error,type="b",ylim=c(0.2,0.5),main="Cross Validation Error by Degree of Polynomial")
+```
+
+```{r}
+polynomial_model <- glm(formula =asthma ~age+co + so2 +ppm10 + aqi + precipitation + poly(vapourpressure,2) +poly(winddirection,2)+(winddirection*vapourpressure), family = "binomial", data = train)
+summary(polynomial_model)
+```
+$$
+P(\text{Asthma}=1 \mid X)
+=
+\frac{
+e^{\,4.062
++ \sum_{k=1}^{K-1}\beta_{\text{age},k}\,\mathbf{1}(\text{age}=k)
++ 1.0280\,\mathrm{CO}
+- 1.8630\,\mathrm{SO}_2
+- 0.1978\,\mathrm{PM10}
++ 0.1219\,\mathrm{AQI}
++ 0.4913\,\mathrm{Precipitation}
+- 1.0600\,\mathrm{VapourPressure}
+- 1.0460\,\mathrm{VapourPressure}^2
++ 1.0660\,\mathrm{WindDirection}
++ 7.4850\,\mathrm{WindDirection}^2
+- 0.0006\,(\mathrm{WindDirection}\times\mathrm{VapourPressure})
+}}
+{
+1 +
+e^{\,4.062
++ \sum_{k=1}^{K-1}\beta_{\text{age},k}\,\mathbf{1}(\text{age}=k)
++ 1.0280\,\mathrm{CO}
+- 1.8630\,\mathrm{SO}_2
+- 0.1978\,\mathrm{PM10}
++ 0.1219\,\mathrm{AQI}
++ 0.4913\,\mathrm{Precipitation}
+- 1.0600\,\mathrm{VapourPressure}
+- 1.0460\,\mathrm{VapourPressure}^2
++ 1.0660\,\mathrm{WindDirection}
++ 7.4850\,\mathrm{WindDirection}^2
+- 0.0006\,(\mathrm{WindDirection}\times\mathrm{VapourPressure})
+}}
+$$
+
+
+
+
+```{r}
+poly_predict <- predict(polynomial_model,test,type="response")
+contrasts(test$asthma)
+```
+
+```{r}
+tab_poly_predict <- rep("No",nrow(test))
+tab_poly_predict[poly_predict>0.5] <- "Yes"
+```
+
+```{r}
+polytab <- table(test$asthma,tab_poly_predict)
+polytab
+```
+
+```{r}
+# Model accuracy for Logistic Regression Model with Polynomial Terms
+mean(tab_poly_predict==test$asthma)
+```
+```{r}
+fpr_poly <- polytab[2,1]/(polytab[2,1]+polytab[1,1])
+cat("The false positive rate for the polynomial model is",fpr_poly)
+```
+```{r}
+fnr_poly <- polytab[1,2]/(polytab[1,2]+polytab[2,2])
+cat("The false negative rate for the polynomial model is",fnr_poly)
+```
+
+
+```{r}
+# Misclassification Rate for Logistic Regression Model with Polynomial Terms
+mean(tab_poly_predict!=test$asthma)
+```
+```{r}
+# False Positive
+fpr_poly <- poly
+```
+
+$$
+P(\text{Asthma}=1 \mid X) = \frac{e^{\beta_0 + \beta_1 \text{age} + \beta_2 \text{co} + \beta_3 \text{so2} + \beta_4 \text{ppm10} + \beta_5 \text{aqi} + \beta_6 \text{precipitation} + \beta_7 \text{vapourpressure} + \beta_8 \text{vapourpressure}^2+\beta_9 \text{winddirection}+\beta_10 \text{winddirection}^2}}{1 + e^{\beta_0 + \beta_1 \text{age} + \beta_2 \text{co} + \beta_3 \text{so2} + \beta_4 \text{ppm10} + \beta_5 \text{aqi} + \beta_6 \text{precipitation} + \beta_7 \text{vapourpressure} +\beta_8 \text{vapourpressure}^2+\beta_9 \text{winddirection}+ \beta_10 \text{winddirection}^2}}
+$$
+
+```{r}
+library(tree)
+```
+
+```{r}
+asthma_tree <- tree(asthma~length_of_stay_minutes+age+gender+co+o3+no2+so2+ppm10+visibility_reduction+aqi+precipitation+relativehumidity+vapourpressure+windspeed+winddirection+maxwindspeed+triage,data=train)
+plot(asthma_tree)
+text(asthma_tree,pretty=0)
+summary(asthma_tree)
+```
+
+```{r}
+set.seed(3)
+asthma_prune <- cv.tree(asthma_tree,FUN=prune.misclass)
+asthma_prune
+```
+
+```{r}
+plot(asthma_prune$size,asthma_prune$dev,type="b",main="Cross Validation of Decision Tree")
+```
+
+```{r}
+best_asthma_tree <- prune.misclass(asthma_tree,best=5)
+summary(best_asthma_tree)
+best_asthma_tree
+```
+
+```{r}
+plot(best_asthma_tree)
+text(best_asthma_tree,pretty=0)
+```
+
+```{r}
+predict_decision_tree <- predict(best_asthma_tree,newdata=test[,c("length_of_stay_minutes","age","gender","co","o3","no2","so2","ppm10","visibility_reduction","aqi","precipitation","relativehumidity","vapourpressure","windspeed","winddirection","maxwindspeed","triage")],type="class")
+```
+
+```{r}
+table(predict_decision_tree)
+```
+
+```{r}
+confusion_matrix <- table(predict_decision_tree,test[,"asthma"])
+confusion_matrix
+```
+
+```{r}
+misclass_tree <- (confusion_matrix[1,2]+confusion_matrix[2,1])/sum(confusion_matrix)
+misclass_tree
+```
+
+```{r}
+Model_accuracy <- (confusion_matrix[1,1]+confusion_matrix[2,2])/sum(confusion_matrix)
+Model_accuracy
+```
+```{r}
+fnr_tree <- confusion_matrix[1,2]/(confusion_matrix[2,2]+confusion_matrix[1,2])
+cat("The false negative rate for a tree is",fnr_tree*100)
+```
+```{r}
+tpr_tree <- confusion_matrix[2,2]/(confusion_matrix[2,2]+confusion_matrix[1,2])
+tpr_tree
+```
+```{r}
+tnr_tree <- confusion_matrix[1,1]/(confusion_matrix[1,1]+confusion_matrix[1,2])
+tnr_tree
+```
+```{r}
+precision_tree <- confusion_matrix[2,2]/(confusion_matrix[2,1]+confusion_matrix[2,2])
+cat("The precision of the decision tree is",precision_tree)
+```
+```{r}
+fpr_tree <- confusion_matrix[2,1]/(confusion_matrix[1,1]+confusion_matrix[2,1])
+cat("The false positve rate of the decision tree is",fpr_tree)
+```
+```{r}
+tnr_tree <- confusion_matrix[1,1]/(confusion_matrix[1,1]+confusion_matrix[2,1])
+cat("The true negative rate of the decision tree is",tnr_tree)
+```
+
+
+
+```{r}
+# Unsupervised learning
+unsuper_model <- prcomp(env[,8:20],scale. = TRUE)
+summary(unsuper_model)
+```
+
+```{r}
+unsuper_model$rotation
+```
+
+```{r}
+biplot(unsuper_model,scale=0,main="Biplot")
+```
+
+```{r}
+screeplot(unsuper_model,main="Proportion of Var")
+```
+```{r}
+plot(unsuper_model$x[,1],unsuper_model$x[,2],col=unclass(env$asthma)+13,xlab="Principal Component 1",ylab="Principal Component 2",main="Principal Component 2 vs Principal Component 1 by Incidence of Asthma")
+legend("topleft",legend=levels(env$asthma),fill=unique(unclass(env$asthma))+13)
+
+```
+
+```{r}
+# Clustering the quantitative variables
+cluster1=kmeans(scale(env[,8:20]),centers=2)
+cluster1$tot.withinss
+```
+```{r}
+cluster1$size
+```
+
+```{r}
+plot(unsuper_model$x[,1],unsuper_model$x[,2],col=fitted(cluster1,"classes")+1,main="Clustering and Principal Component Analysis")
+```
+```{r}
+table(Asthma=env$asthma,clusters=fitted(cluster1,"classes"))
+```
+
+
+
+```{r}
+cluster2 <- hclust(dist(scale(env[,8:20])),method="complete")
+cutree(cluster2,k=2)
+plot(cluster2)
+rect.hclust(cluster2,k=2)
+```
