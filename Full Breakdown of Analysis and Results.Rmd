@@ -1,11 +1,11 @@
 ---
-title: "DataScience Assignment"
-author: '22168243'
+title: "Health Outcome Prediction"
+author: "Marshal"
 date: "2025-08-22"
 output:
+  html_document: 
+  df_print: paged
   word_document: default
-  html_document:
-    df_print: paged
 ---
 
 ```{r setup, include=FALSE}
